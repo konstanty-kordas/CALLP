@@ -19,8 +19,7 @@ struct section {
 struct section *head = NULL;
 
 void insertFirst(char* name) {
-    char* n = (char*)malloc(sizeof(char)*strlen(name));
-    stpncpy(n,name,strlen(name));
+    char* n = strdup(name);
     struct section *link = (struct section*) malloc(sizeof(struct section));
     link->name = n;
     link->keys = NULL;
@@ -41,9 +40,14 @@ void printList() {
 }
 
 struct section* findSection(char* name){
+    if (head==NULL){
+        return NULL;
+    }
     struct section *ptr = head;
     while(ptr){
-        if (strcmp(ptr->name,name)==0){
+        int compare;
+        compare = strcmp(ptr->name,name);
+        if (compare==0){
             return ptr;
         }
         ptr = ptr->NEXT;
@@ -64,7 +68,8 @@ struct key* findKey(char*section_name, char* key_name){
 }
 
 int checkString(char*str){
-    for (int i=0;i<strlen(str);i++){
+    int l = strlen(str);
+    for (int i=0;i<l;i++){
         if (!isalnum(str[i]) && str[i]!='-'){
             return 0;
         }
@@ -91,10 +96,8 @@ void printVals(char*name){
 }
 void insertKey(char*section_name,char*key_name,char*value) {
     struct key* link = (struct key*)malloc(sizeof(struct key));
-    char* n = (char*)malloc(sizeof(char)*strlen(key_name));
-    char* v = (char*)malloc(sizeof(char)*strlen(value));
-    strcpy(n,key_name);
-    strcpy(v,value);
+    char* n = strdup(key_name);
+    char* v = strdup(value);
     struct section* parentSection = findSection(section_name);
     link->NEXT = parentSection->keys; //head
     link->name = n;
@@ -107,8 +110,10 @@ int main(int argc, char *argv[]){
         printf("Not enough arguments given. Use command in format ./main_40 {$INI FILE TO PARSE} {$SECTION}.{$KEY}");
         return 0;
     }
-    char* fname = argv[1];
-    char* temp = argv[2];
+    char* fname;
+    fname = argv[1];
+    char* temp;
+    temp = argv[2];
     int offset = 0;
     while(temp[offset] != '.'){
         offset++;
@@ -116,12 +121,14 @@ int main(int argc, char *argv[]){
 
     int len = strlen(temp);
     char* section_name;
-    section_name = (char *)malloc(sizeof(char) * offset+1);
+    section_name = (char *)malloc(sizeof(char) * offset+2);
     char* key_name;
-    key_name = (char *)malloc(sizeof(char) * len-offset+1);
+    key_name = (char *)malloc(sizeof(char) * len-offset+2);
 
     strncpy(section_name, temp,offset);
+    section_name[offset+1] = '\0';
     strncpy(key_name,temp+(offset+1),len-(offset+1));
+    key_name[len-(offset+1)] = '\0';
 
     printf("SECTION NAME %s, KEY NAME %s \n", section_name, key_name);
     FILE* fp = fopen(fname, "r");
@@ -130,16 +137,12 @@ int main(int argc, char *argv[]){
         perror("File opening failed");
         return EXIT_FAILURE;
     }
-    char ch;
-    int i;
     char line[100];
     char* current_section = (char *)malloc(sizeof(char) * 60);
-    int found_section = 0;
-    int found_key = 0;
 
     while (fgets(line, sizeof line, fp) != NULL){
         if(line[0]=='['){
-            strncpy(current_section, line+1,30);
+            current_section = strdup(line+1);
             current_section[strlen(current_section)-1] = '\0'; // removes last character
             current_section[strlen(current_section)-1] = '\0'; 
             if (checkString(current_section)==0){
@@ -147,7 +150,6 @@ int main(int argc, char *argv[]){
                 return 0;
             }
             insertFirst(current_section);
-            struct key *keyhead = NULL;
             continue;
         }
         else{
@@ -172,7 +174,8 @@ int main(int argc, char *argv[]){
         }
     }
     
-    struct section* a = findSection(section_name);
+    struct section* a;
+    a = findSection(section_name);
     if (a!=NULL){   
         struct key* b = findKey(section_name,key_name);
         printf("FOUND: %s\n",a->name);
@@ -180,10 +183,10 @@ int main(int argc, char *argv[]){
             printf("KEY: %s \n",b->value);
         }
         else{
-            printf("Failed to find key [%s] in section %s\n",key_name,section_name);
+            printf("Failed to find key [%s] in section {%s}\n",section_name,key_name);
         }
     }
     else{
-        printf("Failed to find section %s", section_name);
+        printf("Failed to find section [%s]", section_name);
     }
 }
