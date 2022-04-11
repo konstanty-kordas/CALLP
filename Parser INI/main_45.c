@@ -34,7 +34,7 @@ void printList() {
         ptr = ptr->NEXT;
         counter++;
     }
-    printf("Num of nodes: %d",counter); 
+    printf("Num of nodes: %d\n",counter); 
 	
 }
 
@@ -105,21 +105,10 @@ void insertKey(char*section_name,char*key_name,char*value) {
     parentSection->keys = link;
 }
 
-void split(char*input, char**arg1, char**arg2, char delimeter){
-    int offset = 0;
-    while(input[offset] != delimeter){
-        offset++;
-    }
-    int len = strlen(input);
+void split(char*input, char**arg1, char**arg2, char* delimeter){
+    *arg1 = strtok(input,delimeter);
+    *arg2 = strtok(NULL,delimeter);
     
-    *arg1 = (char *)calloc(offset+2,sizeof(char));
-    
-    *arg2 = (char *)calloc(len-offset+2,sizeof(char));
-
-    strncpy(*arg1, input,offset);
-    arg1[offset+1] = '\0';
-    strncpy(*arg2,input+(offset+1),len-(offset+1));
-    arg2[len-(offset+1)] = '\0';
 }
 
 char* solve(char* section_name, char* key_name){
@@ -151,6 +140,7 @@ int checkType(char*str){
     }
     return 1;
 }
+
 int main(int argc, char *argv[]){
     if (argc<3){
         printf("Not enough arguments given. Use command in format ./main_40 {$INI FILE TO PARSE} {$SECTION}.{$KEY}");
@@ -162,21 +152,18 @@ int main(int argc, char *argv[]){
     temp = argv[2];
     char* section_name;
     char* key_name;
-    split(temp,&section_name,&key_name,'.');
-
+    split(temp,&section_name,&key_name,".");
     char*operation;
     char* section2;
     char*section_name2;
     char*key_name2;
     if (argc>3){
-        printf("%s",argv[3]);
         operation = strdup(argv[3]);
         section2=strdup(argv[4]);
-        split(section2, &section_name2, &key_name2,'.');
-        printf("SECTION NAME %s, KEY NAME %s \n", section_name2, key_name2);
+        split(section2, &section_name2, &key_name2,".");
+        // printf("SECTION NAME %s, KEY NAME %s \n", section_name2, key_name2);
     }
-    // printf("SECTION NAME %s, KEY NAME %s \n", section_name, key_name);
-    FILE* fp = fopen(fname, "r");
+    FILE*fp = fopen(fname, "r");
 
     if(!fp) {
         perror("File opening failed");
@@ -192,27 +179,40 @@ int main(int argc, char *argv[]){
     fseek(fp, 0, SEEK_END);
     file_size = ftell(fp);
     rewind(fp);
-    // while (fgets(line, sizeof line, fp) != NULL){
+    int redo;
+    int comment= 0;
     do{
+        redo=0;
+        size=0;
+        comment= 0;
         pos = ftell(fp);
         while ((ch=fgetc(fp))!='\n'){
+            if ((size==0) && (ch==';')){
+                comment=1;
+            }
             size++;
             if (ch==-1){
                 break;
             }
         }
+        if (size==0) {
+            redo=1;
+        }
+
         if (pos>=file_size){
             break;
         }
         line = (char*)calloc(size+2,sizeof(char));
         fseek(fp,pos,SEEK_SET);
         fgets(line, size+2, fp);
+        if (comment){
+            continue;
+        }
         if(line[0]=='['){
             current_section = (char*)calloc(sizeof(char), size+2);
             current_section = strdup(line+1);
             current_section[strlen(current_section)-1] = '\0'; // removes last character
             current_section[strlen(current_section)-1] = '\0'; 
-            
             if (checkString(current_section)==0){
                 printf("FOUND ILLEGAL ON %s", current_section);
                 return 0;
@@ -220,30 +220,27 @@ int main(int argc, char *argv[]){
             insertFirst(current_section);
             continue;
         }
-        else{
-            if(strlen(line)<=1){
-                continue;
-            }
-            char* curr_key;
-            char* curr_val;
-            split(line,&curr_key,&curr_val,'=');
-            curr_val = curr_val+1;
-            curr_key[strlen(curr_key)-1] = '\0';
-            curr_val[strlen(curr_val)-1] = '\0';
-
-            if (checkString(curr_key)==0){
-                printf("FOUND ILLEGAL ON %s", curr_key);
-                return 0;
-            }
-            insertKey(current_section,curr_key,curr_val);
-            
+        if(strlen(line)<=1){
+            continue;
         }
+        char* curr_key;
+        char* curr_val;
+        split(line,&curr_key,&curr_val,"=");
+
+        curr_val = curr_val+1;
+        curr_key[strlen(curr_key)-1] = '\0';
+        curr_val[strlen(curr_val)-1] = '\0';
+
+        if (checkString(curr_key)==0){
+            printf("FOUND ILLEGAL ON %s", curr_key);
+            return 0;
+        }
+        insertKey(current_section,curr_key,curr_val);
+
     }
-    while (line);
-    
-    // close(fp);
+    while (size || redo );
+    fclose(fp);
     char* val = solve(section_name,key_name);
-    
     if (argc>3){
 
         char* val2 = solve(section_name2,key_name2);
